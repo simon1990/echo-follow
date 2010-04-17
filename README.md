@@ -15,9 +15,6 @@ You'll need the following rubygems:
 * json
 * daemons
 
-Optional:
-
-* tinder -- enable Campfire notifications
 
 Usage
 -----

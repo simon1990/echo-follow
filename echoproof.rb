@@ -6,7 +6,6 @@ require 'rubygems'
 require 'twitter/json_stream'
 require 'json'
 require 'twitter'
-require 'tinder'
 
 # Load configuration
 cwd = File.dirname(File.expand_path(__FILE__))
