@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+require 'rubygems'
+require 'daemons'
+
+opts = {
+  :app_name => "echoproof", 
+  :backtrace => true, 
+  :ontop => false, 
+#  :monitor => true, 
+  :log_output => true
+}
+
+cwd = File.dirname(File.expand_path(__FILE__))
+Daemons.run(cwd+'/echoproof.rb', opts)
+
+exit 0
