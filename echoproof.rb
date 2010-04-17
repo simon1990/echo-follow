@@ -13,7 +13,6 @@ config = YAML.load(File.open(cwd+'/config.yml'))
 USERNAME = config['username']
 PASSWORD = config['password']
 raise "Both username and password are required; check your config.yml" if USERNAME.blank? || PASSWORD.blank?
-puts "user=#{USERNAME}, pass=#{PASSWORD}"
 
 # What gets sent to your new followers
 def welcome_message
