@@ -1,4 +1,4 @@
-Streampond
+EchoProof
 ---------
 
 A service that uses the new Twitter User Streams API to monitor
