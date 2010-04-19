@@ -53,7 +53,7 @@ end
 # ------
 
 # Initialize our storage
-DB = Sequel.sqlite("database.sqlite3")
+DB = Sequel.sqlite("#{cwd}/database.sqlite3")
 unless DB.table_exists?(:followers)
   DB.create_table :followers do
     primary_key :id
