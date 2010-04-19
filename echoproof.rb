@@ -25,7 +25,7 @@ def follow_callback(message)
 
   # Check if we've already autoresponded to them
   follower = Twitter.user(message["source"]["id"])
-  if DB[:followers].where(:screen_name => follower.screen_name).first.nil?
+  if DB[:followers].where(:screen_name => follower.screen_name).count > 0
     puts "Error: we've already messaged this user #{follower.screen_name.inspect}, skipping"
     return false
   end
