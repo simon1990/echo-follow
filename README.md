@@ -13,6 +13,7 @@ You'll need the following rubygems:
 * twitter
 * twitter-stream
 * json
+* sequel + sqlite3-ruby
 * daemons
 
 
