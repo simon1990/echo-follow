@@ -16,14 +16,14 @@ raise "Both username and password are required; check your config.yml" if USERNA
 
 # What gets sent to your new followers
 def welcome_message
-  "Welcome! Use coupon code ADTECH on http://140proof.com for $50 of free ads. Follow @140ProofAds for breaking news in Twitter advertising"
+  "Use coupon code ADTECH when checking out at http://140proof.com for $50 of free ads. Follow @140ProofAds for more Twitter advertising news."
 end
 
 # Invoked after a user follows us
 def follow_callback(message)
 
   follower = Twitter.user(message["source"]["id"])
-  
+
   # Follow them back & DM them
   auth = Twitter::HTTPAuth.new(USERNAME, PASSWORD)
   client = Twitter::Base.new(auth)
