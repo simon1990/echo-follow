@@ -1,8 +1,8 @@
-EchoProof
+EchoFollow
 ---------
 
-A service that uses the new Twitter User Streams API to monitor
-your account and send a welcome DM to new followers (and potentially other actions)
+A service that uses the new Twitter User Streams API to monitor your account
+and send a welcome DM to new followers (and potentially other actions)
 
 
 Dependencies

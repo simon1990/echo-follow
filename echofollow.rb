@@ -1,12 +1,15 @@
 #!/usr/bin/env ruby
-# echoproof
+# echofollow
 # see README for more information
 
 require 'rubygems'
+require 'bundler/setup'
+
+require 'twitter'
 require 'twitter/json_stream'
 require 'json'
-require 'twitter'
 require 'sequel'
+require 'eventmachine'
 
 # Load configuration
 cwd = File.dirname(File.expand_path(__FILE__))
@@ -31,8 +34,10 @@ def follow_callback(message)
   end
 
   # Follow them back & DM them
-  auth = Twitter::HTTPAuth.new(USERNAME, PASSWORD)
-  client = Twitter::Base.new(auth)
+  oauth = Twitter::OAuth.new(config['token'], config['secret'])
+  oauth.authorize_from_access(config['atoken'], config['asecret'])
+  client = Twitter::Authenticated.new(oauth)
+
   puts "Following @#{follower.screen_name} ..."
   client.friendship_create(follower.id) rescue (STDERR.puts "Error following  @#{follower.screen_name}: #{$!}")
   puts "DMing welcome message: #{welcome_message} ..."
@@ -64,11 +69,14 @@ end
 
 # Processing loop
 EventMachine::run do
+
+  puts "Opening userstream connection... "
   stream = Twitter::JSONStream.connect(
-    :host    => 'betastream.twitter.com',
-    :path    => '/2b/user.json',
-    :auth    => "#{USERNAME}:#{PASSWORD}"
+    :host => 'userstream.twitter.com',   
+    :path => '/2/user.json',
+    :auth => "#{USERNAME}:#{PASSWORD}"
   )
+  puts "Success!"
 
   stream.each_item do |item|
     json = JSON.parse(item)

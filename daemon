@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 require 'rubygems'
+require 'bundler/setup'
 require 'daemons'
 
 opts = {
-  :app_name => "echoproof", 
+  :app_name => "echofollow", 
   :backtrace => true, 
   :ontop => false, 
 #  :monitor => true, 
@@ -11,6 +12,6 @@ opts = {
 }
 
 cwd = File.dirname(File.expand_path(__FILE__))
-Daemons.run(cwd+'/echoproof.rb', opts)
+Daemons.run(cwd+"/#{opts[:app_name]}.rb", opts)
 
 exit 0

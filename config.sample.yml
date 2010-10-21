@@ -1,3 +1,10 @@
-# Your Twitter account credentials
+# Your Twitter account credentials (for UserStreams)
 username: THE_REAL_SHAQ
 password: topsecr3t
+
+# OAuth tokens (for follow/unfollow)
+token: ffffffffffuuuuuuuuuuu
+secret: hhhhhhhhnggggggggggggggggggggggggggggggggg
+atoken: ffffffffffuuuuuuuuuuu
+asecret: hhhhhhnnnnnnnggggggggggggggggggggggggggggg
+
