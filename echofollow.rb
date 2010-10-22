@@ -50,7 +50,6 @@ def connect_to_twitter
    'atoken'  => oauth.access_token.token,
    'asecret' => oauth.access_token.secret,
   }).delete('rtoken', 'rsecret')
-  puts "Updated config: #{config.inspect}"
   end
 
   @client = Twitter::Base.new(oauth)
@@ -110,8 +109,8 @@ def run
 
   # Processing loop
   EventMachine::run do
+    @processed_items = 0
     puts "Opening userstream connection... "
-    puts "atoken=#{config['atoken'].inspect}, asecret=#{config['asecret'].inspect}"
     stream = Twitter::JSONStream.connect(
       :user_agent => "Echofollow 1.0 <http://140proof.com>",
       :host => 'userstream.twitter.com',
@@ -125,20 +124,26 @@ def run
         :access_secret   => config['asecret']
       }
     )
-    puts "Success!"
-    puts "stream=#{stream.inspect}"
+    puts "Waiting for 1st message (friends list) ..."
 
     stream.each_item do |item|
+      @processed_items += 1
       json = JSON.parse(item)
-      puts "\n-------------------"
-      puts json.inspect
+      puts "\n------- ##{@processed_items} --------"
 
       event = json["event"]
       case event.to_s
       when "follow"
         follow_callback(json)
       else
-        puts "Unhandled event: #{event.inspect} -- ignoring"
+        puts json.inspect
+
+        # Initial friends list -- 1st message
+        if json.keys == ["friends"]
+          puts "Received initial friends list, connection OK!"
+        else
+          puts "Unhandled event: #{event.inspect} -- ignoring"
+        end
       end
     end
 
