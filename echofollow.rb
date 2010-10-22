@@ -28,7 +28,7 @@ end
 
 # Text that gets sent to your new followers!
 def welcome_message
-  "Use coupon code ADTECH when checking out at http://140proof.com for $50 of free ads. Follow @140ProofAds for more Twitter advertising news."
+  "Hi, thanks for following! Check out http://mywebsite.com for more info"
 end
 
 # Establish connection to Twitter
