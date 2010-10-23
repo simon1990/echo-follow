@@ -26,9 +26,34 @@ def cwd
   File.dirname(File.expand_path(__FILE__))
 end
 
+def db_file
+  "#{cwd}/database.sqlite3"
+end
+
 # Text that gets sent to your new followers!
 def welcome_message
   "Hi, thanks for following! Check out http://mywebsite.com for more info"
+end
+
+def init_database(db)
+  unless db.table_exists?(:subscribers)
+    puts "Creating table: subscribers"
+    db.create_table :subscribers do
+      primary_key :id
+      String :screen_name
+      DateTime :created_at
+    end
+  end
+
+  unless db.table_exists?(:messages)
+    puts "Creating table: messages"
+    db.create_table :messages do
+      primary_key :id
+      String :text
+      DateTime :created_at
+      DateTime :scheduled_at
+    end
+  end
 end
 
 # Establish connection to Twitter
@@ -64,7 +89,7 @@ def follow_callback(message)
 
   # Check if we've already autoresponded to them
   follower = client.user(message["source"]["id"])
-  if DB[:followers].where(:screen_name => follower.screen_name).count > 0
+  if DB[:subscribers].where(:screen_name => follower.screen_name).count > 0
     puts "Error: we've already messaged this user #{follower.screen_name.inspect}, skipping"
     return false
   end
@@ -74,30 +99,52 @@ def follow_callback(message)
   puts "DMing welcome message: #{welcome_message} ..."
   client.direct_message_create(follower.id, welcome_message) rescue (STDERR.puts "Error DMing @#{follower.screen_name}: #{$!}")
 
-  log_as_responded(follower.screen_name)
+  add_subscriber(follower.screen_name)
 
   return true
 end
 
-# Record that we've DM'd a user in our database
-def log_as_responded(username)
-  puts "Logging user as added, #{username.inspect} ..."
-  followers = DB[:followers]
-  followers.insert(:screen_name => username, :created_at => Time.now)
+# Record our new followers/subscriber to our database
+def add_subscriber(username)
+  if subscribers.count(:screen_name => username) > 0
+    puts "- #{username.inspect} is already subscribed! Skipping."
+  else
+    puts "+ Adding subscriber #{username.inspect}..."
+    subscribers.insert(:screen_name => username, :created_at => Time.now)
+  end
 end
+
+# Send msg to all of our subscribers
+def broadcast(message)
+  puts "Broadcasting message: #{message.inspect}"
+  subscribers.each do |user|
+    puts "* #{user[:screen_name]} ..."
+  end
+end
+
+def subscribers
+  DB[:subscribers]
+end
+
+# Message scheduling
+def schedule_message(message, time)
+  puts "Scheduling message for #{time.inspect}: #{message.inspect}"
+  raise "Can't schedule a blank message!" if message.empty?
+  raise "No messages table!" if DB.nil? || DB[:messages].nil?
+  messages.insert(:text => message, :scheduled_at => time.utc, :created_at => Time.now)
+end
+
+def messages
+  DB[:messages]
+end
+
+def future_messages
+  messages.where('scheduled_at > ?', Time.now.utc).order(:scheduled_at)
+end
+
 
 # The main loop
 def run
-  puts "Running as @#{config['username']}"
-
-  # Initialize our storage
-  unless DB.table_exists?(:followers)
-    DB.create_table :followers do
-      primary_key :id
-      String :screen_name
-      DateTime :created_at
-    end
-  end
 
   # Authenticate
   begin
@@ -107,12 +154,12 @@ def run
     exit 1
   end
 
-  # Processing loop
+  # Event processing loop for Twitter UserStream
   EventMachine::run do
     @processed_items = 0
     puts "Opening userstream connection... "
     stream = Twitter::JSONStream.connect(
-      :user_agent => "Echofollow 1.0 <http://140proof.com>",
+      :user_agent => "Echofollow 1.0 <http://github.com/bubblefusionlabs/echofollow>",
       :host => 'userstream.twitter.com',
       :path => '/2/user.json',
       :ssl => true, # Required for Oauth!
@@ -136,13 +183,12 @@ def run
       when "follow"
         follow_callback(json)
       else
-        puts json.inspect
-
-        # Initial friends list -- 1st message
+        # We only care about the 1st message, our followings list
         if json.keys == ["friends"]
           puts "Received initial friends list, connection OK!"
         else
-          puts "Unhandled event: #{event.inspect} -- ignoring"
+          puts "Unhandled message or event -- ignoring"
+          # puts json.inspect
         end
       end
     end
@@ -168,6 +214,21 @@ def run
       exit 1
     end
 
+    # Timer loop for broadcasting scheduled messages
+    @n ||= 0
+    timer = EventMachine::add_periodic_timer(5) do
+      @n += 1
+      puts #...
+      puts "n=#{@n}, #{messages.count} messages, #{future_messages.count} future_messages -- the time is #{Time.now} (#{Time.now.utc})"
+      if future_messages.count > 0
+        message = future_messages.first
+        broadcast(message[:text])
+        messages.where(:id => message[:id]).delete
+      end
+      # timer.cancel if (@n+=1) > 2
+    end
+
+    # Catch UNIX kill sigs so we can close connections
     trap('TERM') do
       stream.stop
       EventMachine.stop if EventMachine.reactor_running?
@@ -175,6 +236,16 @@ def run
   end
 end
 
-DB = Sequel.sqlite("#{cwd}/database.sqlite3")
+# Go
+DB = Sequel.sqlite(db_file)
+DB.drop_table(:messages) if DB.table_exists?(:messages) # RESET
+init_database(DB)
+
+puts "Current subscribers: #{DB[:subscribers].map {|f| f[:screen_name] }.inspect}"
+schedule_message("Sup my dawg! Send this in 5 seconds!", Time.now + 5)
+# Note: above won't get broadcasted as we require > 5 seconds of startup time... FYI!
+schedule_message("PHASE 2! Send this in 10 seconds!", Time.now + 10)
+schedule_message("OH SNAP! Send this in 20 seconds!", Time.now + 20)
+
 run
 exit 0
