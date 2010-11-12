@@ -12,6 +12,7 @@ require 'json'
 require 'twitter/json_stream'
 require 'eventmachine'
 require 'sequel'
+require 'chronic'
 
 # Load configuration
 def config
@@ -52,6 +53,7 @@ def init_database(db)
       String :text
       DateTime :created_at
       DateTime :scheduled_at
+      DateTime :sent_at
     end
   end
 end
@@ -106,7 +108,7 @@ end
 
 # Record our new followers/subscriber to our database
 def add_subscriber(username)
-  if subscribers.count(:screen_name => username) > 0
+  if subscribers.where(:screen_name => username).count > 0
     puts "- #{username.inspect} is already subscribed! Skipping."
   else
     puts "+ Adding subscriber #{username.inspect}..."
@@ -119,6 +121,8 @@ def broadcast(message)
   puts "Broadcasting message: #{message.inspect}"
   subscribers.each do |user|
     puts "* #{user[:screen_name]} ..."
+    follower = client.user(user[:screen_name])
+    client.direct_message_create(follower.id, message) rescue (STDERR.puts "Error DMing @#{follower.screen_name}: #{$!}")
   end
 end
 
@@ -140,6 +144,14 @@ end
 
 def future_messages
   messages.where('scheduled_at > ?', Time.now.utc).order(:scheduled_at)
+end
+
+def pending_messages
+  messages.where('sent_at IS NULL AND scheduled_at < ?', Time.now.utc).order(:scheduled_at)
+end
+
+def sent_messages
+  messages.where('sent_at IS NOT NULL').order(:scheduled_at)
 end
 
 
@@ -218,12 +230,13 @@ def run
     @n ||= 0
     timer = EventMachine::add_periodic_timer(5) do
       @n += 1
-      puts #...
-      puts "n=#{@n}, #{messages.count} messages, #{future_messages.count} future_messages -- the time is #{Time.now} (#{Time.now.utc})"
-      if future_messages.count > 0
-        message = future_messages.first
+      puts "n=#{@n}, #{messages.count} messages, #{pending_messages.count} pending, #{future_messages.count} scheduled -- the time is #{Time.now} (#{Time.now.utc})"
+      if pending_messages.count > 0
+        message = pending_messages.first
         broadcast(message[:text])
-        messages.where(:id => message[:id]).delete
+        # messages.where(:id => message[:id]).delete
+	messages.where(:id => message[:id]).update(:sent_at => Time.now.utc)
+        #message[:sent_at] = Time.now.utc
       end
       # timer.cancel if (@n+=1) > 2
     end
@@ -241,11 +254,14 @@ DB = Sequel.sqlite(db_file)
 DB.drop_table(:messages) if DB.table_exists?(:messages) # RESET
 init_database(DB)
 
+# Note: Chronic uses local system time and knows nothing of timezones,
+# so *all dates must be entered in UTC* (+0:00)
 puts "Current subscribers: #{DB[:subscribers].map {|f| f[:screen_name] }.inspect}"
-schedule_message("Sup my dawg! Send this in 5 seconds!", Time.now + 5)
-# Note: above won't get broadcasted as we require > 5 seconds of startup time... FYI!
-schedule_message("PHASE 2! Send this in 10 seconds!", Time.now + 10)
-schedule_message("OH SNAP! Send this in 20 seconds!", Time.now + 20)
+schedule_message("Sup my dawg! This message was scheduled for 2 minutes after launch", Chronic.parse("2 minutes from now") )
+schedule_message("Message2...", Chronic.parse("1:20am") )
+
+#schedule_message("PHASE 2! Send this in 10 seconds!", Time.now + 10)
+#schedule_message("OH SNAP! Send this in 20 seconds!", Time.now + 20)
 
 run
 exit 0
