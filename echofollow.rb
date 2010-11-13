@@ -132,10 +132,14 @@ end
 
 # Message scheduling
 def schedule_message(message, time)
-  puts "Scheduling message for #{time.inspect}: #{message.inspect}"
+  puts "Scheduling message for #{time.inspect}: #{message.inspect}" 
+
   raise "Can't schedule a blank message!" if message.empty?
   raise "No messages table!" if DB.nil? || DB[:messages].nil?
+  raise "Can't schedule a message for before this script was launched! time=#{time.inspect}, running_since=#{running_since.inspect}" if time < running_since
   messages.insert(:text => message, :scheduled_at => time.utc, :created_at => Time.now)
+rescue
+  STDERR.puts "ERROR: #{$!}"
 end
 
 def messages
@@ -169,7 +173,7 @@ def run
   # Event processing loop for Twitter UserStream
   EventMachine::run do
     @processed_items = 0
-    puts "Opening userstream connection... "
+    puts "\nOpening userstream connection... "
     stream = Twitter::JSONStream.connect(
       :user_agent => "Echofollow 1.0 <http://github.com/bubblefusionlabs/echofollow>",
       :host => 'userstream.twitter.com',
@@ -249,19 +253,24 @@ def run
   end
 end
 
+def running_since
+  @running_since
+end
+
+
 # Go
 DB = Sequel.sqlite(db_file)
 DB.drop_table(:messages) if DB.table_exists?(:messages) # RESET
 init_database(DB)
+@running_since ||= Time.now
 
-# Note: Chronic uses local system time and knows nothing of timezones,
-# so *all dates must be entered in UTC* (+0:00)
+# Note: Chronic uses local system time and knows nothing of timezones (w/o Rails)
+# So for a server set to UTC, *all times must be entered in UTC* (+0:00)
 puts "Current subscribers: #{DB[:subscribers].map {|f| f[:screen_name] }.inspect}"
+puts
 schedule_message("Sup my dawg! This message was scheduled for 2 minutes after launch", Chronic.parse("2 minutes from now") )
 schedule_message("Message2...", Chronic.parse("1:20am") )
-
-#schedule_message("PHASE 2! Send this in 10 seconds!", Time.now + 10)
-#schedule_message("OH SNAP! Send this in 20 seconds!", Time.now + 20)
+schedule_message("Message from the past which should be ignored", Chronic.parse("10 minutes ago"))
 
 run
 exit 0
