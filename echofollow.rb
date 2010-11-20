@@ -68,7 +68,11 @@ def connect_to_twitter
     oauth.authorize_from_access(config['atoken'], config['asecret'])
   elsif config['rtoken'] && config['rsecret']
   puts "> redirecting you to twitter to authorize..."
-  %x(open #{oauth.request_token.authorize_url})
+  if `uname` =~ /Darwin/ # Mac
+    %x(open #{oauth.request_token.authorize_url})
+  else
+    puts "Visit this url: #{oauth.request_token.authorize_url}"
+  end
   print "> what was the PIN twitter provided you with? "
   pin = gets.chomp
 
