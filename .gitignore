@@ -5,3 +5,5 @@
 *.output
 config.yml
 *.sqlite3
+.bundle_gems
+nohup.out
